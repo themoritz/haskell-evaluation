@@ -1,0 +1,103 @@
+#+TITLE: Controlling Evaluation
+#+AUTHOR: Moritz Drexl <mdrexl@fastmail.fm>
+#+DATE: Nov 21st, 2019
+
+* Motivation
+
+** Key to understanding space and time behavior of Haskell programs
+
+- Identify and fix space leaks
+- Improve performance
+
+* Lazyness and Evaluation
+
+** What is lazyness?
+
+- Lazy evaluation delays evaluation of an expression until the value is needed.
+- Repeated evaluation is avoided through by sharing.
+
+** What is a thunk?
+
+- Conceptually, it's a value that only becomes available after some expression
+  has been evaluated.
+- Sits on the Haskell heap.
+
+** Rules of lazyness in Haskell
+
+*** Initial set of thunks is the top-level definitions
+
+#+BEGIN_SRC haskell
+  true :: Bool
+  true = True
+
+  not :: Bool -> Bool
+  not b = case b of
+    True  -> False
+    False -> True
+#+END_SRC
+
+*** Function application creates a thunk
+
+#+BEGIN_SRC haskell
+  x :: Bool
+  x = not true
+#+END_SRC
+
+Draw diagram of thunks involved
+
+*** Evaluation destroys a thunk (but may create others)
+
+**** IO evaluates
+
+- Without IO there's no evaluation
+- IO actions perform evaluation in sequence
+
+#+BEGIN_SRC haskell
+  main :: IO ()
+  main = do
+    let x = not True  -- x points to a new thunk
+    _ <- evaluate x   -- now x is evaluated to False
+    print x           -- printing would have evaluated x anyway
+#+END_SRC
+
+**** Steps of evaluation
+
+1. Symbols point to thunks
+2. You evaluate a thunk/symbol
+3. When you evaluate a thunk, you run the "script" to evaluate the expression
+   (function body) within it
+4. The script may
+   - Create new thunks (function application), or
+   - Evaluate other thunks
+5. Evaluation goes on until you have a value in WHNF.
+
+**** What's WHNF?
+
+Weak head normal form
+
+- Look at outermost part of an expression.
+- If it's a data constructor or a lambda, yes.
+- if it's function application, no.
+
+#+BEGIN_SRC haskell
+  Left (not True) -- yes
+  \b -> not b     -- yes
+  not True        -- no
+#+END_SRC
+
+* Fine tuning evaluation
+
+** Pattern matching evaluates
+
+- Creates a chain reaction of evaluations.
+  "If you want to evaluate the =not true= thunk, you first need to evaluate =true=."
+- Tuning the strictness of Haskell programs is just this.
+
+** seq
+
+- seq is just like a pattern match that's not optimized away.
+- =seq x y= means "if you want to evaluate y, you also need to evaluate x.
+
+** BangPatterns
+
+- Bang patterns are just syntactic sugar for =seq=.
