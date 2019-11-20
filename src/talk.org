@@ -21,6 +21,16 @@
 - Conceptually, it's a value that only becomes available after some expression
   has been evaluated.
 - Sits on the Haskell heap.
+- Thunks can be visualized in GHCI with =:sprint=
+
+#+BEGIN_SRC haskell
+  >>> let x = True
+  >>> :sprint x
+  x = True
+  >>> let y = 1 + 1
+  >>> :sprint y
+  y = _
+#+END_SRC
 
 ** Rules of lazyness in Haskell
 
@@ -98,6 +108,75 @@ Weak head normal form
 - seq is just like a pattern match that's not optimized away.
 - =seq x y= means "if you want to evaluate y, you also need to evaluate x.
 
+#+BEGIN_SRC haskell
+  f :: Int -> Maybe Int
+  f i =
+    case i of
+      1 -> Just 1
+      _ -> Just i
+
+  g :: Int -> Int
+  g i = seq i (Just i)
+#+END_SRC
+
 ** BangPatterns
 
 - Bang patterns are just syntactic sugar for =seq=.
+- The pattern evaluates the thunk before it binds the variable.
+
+#+BEGIN_SRC haskell
+  f :: Int -> Maybe Int
+  f !i = Just i
+#+END_SRC
+
+** Strict fields
+
+- Also "syntactic sugar" for =seq=.
+- Evaluates a thunk before putting it into the data type
+
+#+BEGIN_SRC haskell
+  data SMaybe a =
+      SJust !a
+    | SNothing
+
+  f :: Int -> SMaybe Int
+  f i = SJust i
+#+END_SRC
+
+** deepseq / force
+
+- Big hammer, makes sure that everything is evaluated to normal form
+- "Recursively call =seq= on every field of the data type"
+- Has cost of traversing a data structure even if it's aleady fully evaluated
+
+* Examples
+
+** A spine strict list
+
+- Spine strict: If you evaluate the list, the list as well as all its elements
+  are evaluated.
+- Running methods on it always leaves the list in a spine forced state.
+
+#+BEGIN_SRC haskell
+  newtype Spine a = Spine [a]
+
+  map :: (a -> b) -> Spine a -> Spine b
+  map = undefined
+#+END_SRC
+
+** The case of foldl
+
+#+BEGIN_SRC haskell
+  foldl :: (b -> a -> b) -> b -> [a] -> b
+  foldl f z []     = z
+  foldl f z (x:xs) =
+    let
+      z' = z `f` x
+    in
+      foldl f z' xs
+#+END_SRC
+
+#+BEGIN_SRC haskell
+  mean :: [Double] -> Double
+  mean xs = undefined
+#+END_SRC
