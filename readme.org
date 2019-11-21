@@ -171,10 +171,17 @@
 - Running methods on it always leaves the list in a spine forced state
 
 #+BEGIN_SRC haskell
-  newtype Spine a = Spine [a]
+  data Spine a = Spine [a]
 
   smap :: (a -> b) -> Spine a -> Spine b
-  smap = undefined
+  smap f (Spine xs) = Spine (loop xs)
+    where
+      loop []     = []
+      loop (x:xs) = f x : loop xs
+
+  -- >>> let !x = smap not (Spine [True, False])
+  -- >>> :sprint x
+  -- x = Spine _
 #+END_SRC
 
 ** The Case of foldl'
