@@ -1,27 +1,27 @@
-#+TITLE: Controlling Evaluation
+#+TITLE: Controlling Evaluation in Haskell
 #+AUTHOR: Moritz Drexl <mdrexl@fastmail.fm>
 #+DATE: Nov 21st, 2019
 
 * Motivation
 
-** Key to understanding space and time behavior of Haskell programs
-
-- Identify and fix space leaks
-- Improve performance
+- Key to understanding space and time behavior of Haskell programs
+  - Identify and fix space leaks
+  - Improve performance
+- Want to avoid placing bangs hit or miss
 
 * Lazyness and Evaluation
 
-** What is lazyness?
+** What is Lazyness?
 
-- Lazy evaluation delays evaluation of an expression until the value is needed.
-- Repeated evaluation is avoided through by sharing.
+- Lazy evaluation delays evaluation of an expression until the value is needed
+- Repeated evaluation is avoided through by sharing
 
-** What is a thunk?
+** What is a Thunk?
 
 - Conceptually, it's a value that only becomes available after some expression
-  has been evaluated.
-- Sits on the Haskell heap.
-- Thunks can be visualized in GHCI with =:sprint=
+  has been evaluated
+- Sits on the Haskell heap
+- Presence of thunks can be visualized in GHCI with =:sprint=
 
 #+BEGIN_SRC haskell
   >>> let x = True
@@ -32,7 +32,7 @@
   y = _
 #+END_SRC
 
-** Rules of lazyness in Haskell
+** Model of Lazy Evaluation in Haskell
 
 *** Initial set of thunks is the top-level definitions
 
@@ -53,8 +53,6 @@
   x = not true
 #+END_SRC
 
-Draw diagram of thunks involved
-
 *** Evaluation destroys a thunk (but may create others)
 
 **** IO evaluates
@@ -67,27 +65,15 @@ Draw diagram of thunks involved
   main = do
     let x = not True  -- x points to a new thunk
     _ <- evaluate x   -- now x is evaluated to False
-    print x           -- printing would have evaluated x anyway
+    print x           -- printing would have evaluated x anyway but does not again
 #+END_SRC
 
-**** Steps of evaluation
+**** What happens when evaluating
 
-1. Symbols point to thunks
-2. You evaluate a thunk/symbol
-3. When you evaluate a thunk, you run the "script" to evaluate the expression
-   (function body) within it
-4. The script may
-   - Create new thunks (function application), or
-   - Evaluate other thunks
-5. Evaluation goes on until you have a value in WHNF.
-
-**** What's WHNF?
-
-Weak head normal form
-
-- Look at outermost part of an expression.
-- If it's a data constructor or a lambda, yes.
-- if it's function application, no.
+- We always evaluate a symbol/thunk to *Weak Head Normal Form (WHNF)*
+- When is an expression in WHNF? => Look at outermost part of an expression
+  - If it's a data constructor or a lambda => yes
+  - if it's function application           => no
 
 #+BEGIN_SRC haskell
   Left (not True) -- yes
@@ -95,18 +81,29 @@ Weak head normal form
   not True        -- no
 #+END_SRC
 
-* Fine tuning evaluation
+1. When you evaluate a thunk, you run the "script" to evaluate the expression
+   (function body) within it
+2. The script may
+   - Create new thunks (function application), or
+   - Evaluate other thunks (pattern matching, seq)
+3. Evaluation goes on until you have a value in WHNF
+
+#+BEGIN_SRC haskell
+  _ <- evaluate (not true)
+#+END_SRC
+
+* Controlling Evaluation
 
 ** Pattern matching evaluates
 
-- Creates a chain reaction of evaluations.
-  "If you want to evaluate the =not true= thunk, you first need to evaluate =true=."
-- Tuning the strictness of Haskell programs is just this.
+- Creates a chain reaction of evaluations
+  "If you want to evaluate the =not true= thunk, you first need to evaluate =true="
+- Tuning the strictness of Haskell programs is just this
 
 ** seq
 
-- seq is just like a pattern match that's not optimized away.
-- =seq x y= means "if you want to evaluate y, you also need to evaluate x.
+- seq is just like a generic pattern match that's not optimized away
+- =seq x y= means "if you want to evaluate y, you also need to evaluate x
 
 #+BEGIN_SRC haskell
   f :: Int -> Maybe Int
@@ -121,8 +118,8 @@ Weak head normal form
 
 ** BangPatterns
 
-- Bang patterns are just syntactic sugar for =seq=.
-- The pattern evaluates the thunk before it binds the variable.
+- Bang patterns are just syntactic sugar for =seq=
+- The pattern evaluates the thunk before it binds the variable
 
 #+BEGIN_SRC haskell
   f :: Int -> Maybe Int
@@ -131,7 +128,7 @@ Weak head normal form
 
 ** Strict fields
 
-- Also "syntactic sugar" for =seq=.
+- Also "syntactic sugar" for =seq=
 - Evaluates a thunk before putting it into the data type
 
 #+BEGIN_SRC haskell
@@ -151,20 +148,36 @@ Weak head normal form
 
 * Examples
 
-** A spine strict list
+** trace
+
+- =trace= can be used to debug evaluation
+- Let's use it to illustrate sharing
+
+#+BEGIN_SRC haskell
+  data Pair = Pair Int Int
+
+  f :: Int -> Pair
+  f i =
+    let
+      x = trace "computing x" (i + 1)
+    in
+      Pair x x
+#+END_SRC
+
+** Spine Strict List
 
 - Spine strict: If you evaluate the list, the list as well as all its elements
-  are evaluated.
-- Running methods on it always leaves the list in a spine forced state.
+  are evaluated
+- Running methods on it always leaves the list in a spine forced state
 
 #+BEGIN_SRC haskell
   newtype Spine a = Spine [a]
 
-  map :: (a -> b) -> Spine a -> Spine b
-  map = undefined
+  smap :: (a -> b) -> Spine a -> Spine b
+  smap = undefined
 #+END_SRC
 
-** The case of foldl
+** The Case of foldl'
 
 #+BEGIN_SRC haskell
   foldl :: (b -> a -> b) -> b -> [a] -> b
