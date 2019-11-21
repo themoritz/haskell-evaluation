@@ -14,7 +14,7 @@
 ** What is Lazyness?
 
 - Lazy evaluation delays evaluation of an expression until the value is needed
-- Repeated evaluation is avoided through by sharing
+- Repeated evaluation is avoided through sharing
 
 ** What is a Thunk?
 
@@ -53,12 +53,15 @@
   x = not true
 #+END_SRC
 
+- Often, space leaks exist because a function is applied iteratively before
+  something is evaluated
+
 *** Evaluation destroys a thunk (but may create others)
 
 **** IO evaluates
 
 - Without IO there's no evaluation
-- IO actions perform evaluation in sequence
+- Only IO actions initiate evaluation, and in sequence
 
 #+BEGIN_SRC haskell
   main :: IO ()
@@ -81,12 +84,16 @@
   not True        -- no
 #+END_SRC
 
+*Steps:*
+
 1. When you evaluate a thunk, you run the "script" to evaluate the expression
    (function body) within it
 2. The script may
    - Create new thunks (function application), or
-   - Evaluate other thunks (pattern matching, seq)
+   - Evaluate other thunks (pattern matching, =seq=)
 3. Evaluation goes on until you have a value in WHNF
+
+*Example:*
 
 #+BEGIN_SRC haskell
   _ <- evaluate (not true)
@@ -97,13 +104,13 @@
 ** Pattern matching evaluates
 
 - Creates a chain reaction of evaluations
-  "If you want to evaluate the =not true= thunk, you first need to evaluate =true="
-- Tuning the strictness of Haskell programs is just this
+  - "If you want to evaluate the =not true= thunk, you first need to evaluate =true="
+- Tuning the strictness of Haskell programs just revolves around this reasoning
 
-** seq
+** =seq=
 
 - seq is just like a generic pattern match that's not optimized away
-- =seq x y= means "if you want to evaluate y, you also need to evaluate x
+- =seq x y= means "if you want to evaluate y, you also need to evaluate x"
 
 #+BEGIN_SRC haskell
   f :: Int -> Maybe Int
@@ -112,7 +119,7 @@
       1 -> Just 1
       _ -> Just i
 
-  g :: Int -> Int
+  g :: Int -> Maybe Int
   g i = seq i (Just i)
 #+END_SRC
 
@@ -122,8 +129,8 @@
 - The pattern evaluates the thunk before it binds the variable
 
 #+BEGIN_SRC haskell
-  f :: Int -> Maybe Int
-  f !i = Just i
+  h :: Int -> Maybe Int
+  h !i = Just i
 #+END_SRC
 
 ** Strict fields
@@ -136,11 +143,11 @@
       SJust !a
     | SNothing
 
-  f :: Int -> SMaybe Int
-  f i = SJust i
+  s :: Int -> SMaybe Int
+  s i = SJust i
 #+END_SRC
 
-** deepseq / force
+** =deepseq= / =force=
 
 - Big hammer, makes sure that everything is evaluated to normal form
 - "Recursively call =seq= on every field of the data type"
@@ -148,7 +155,7 @@
 
 * Examples
 
-** trace
+** =trace=
 
 - =trace= can be used to debug evaluation
 - Let's use it to illustrate sharing
@@ -156,8 +163,8 @@
 #+BEGIN_SRC haskell
   data Pair = Pair Int Int
 
-  f :: Int -> Pair
-  f i =
+  wrap :: Int -> Pair
+  wrap i =
     let
       x = trace "computing x" (i + 1)
     in
@@ -200,3 +207,8 @@
   mean :: [Double] -> Double
   mean xs = undefined
 #+END_SRC
+
+* Resources
+
+- [[http://blog.ezyang.com/2011/04/the-haskell-heap/][The Haskell Heap]] by Edward Z. Yang (!)
+- [[https://github.com/themoritz/haskell-evaluation][Talk on Github]]
