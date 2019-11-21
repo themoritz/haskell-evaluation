@@ -37,8 +37,8 @@
 *** Initial set of thunks is the top-level definitions
 
 #+BEGIN_SRC haskell
-  true :: Bool
-  true = True
+  bit :: Bool
+  bit = True
 
   not :: Bool -> Bool
   not b = case b of
@@ -50,7 +50,7 @@
 
 #+BEGIN_SRC haskell
   x :: Bool
-  x = not true
+  x = not bit
 #+END_SRC
 
 - Often, space leaks exist because a function is applied iteratively before
