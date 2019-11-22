@@ -4,10 +4,10 @@
 
 * Motivation
 
+- Want to avoid placing bangs hit or miss
 - Key to understanding space and time behavior of Haskell programs
   - Identify and fix space leaks
   - Improve performance
-- Want to avoid placing bangs hit or miss
 
 * Lazyness and Evaluation
 
@@ -53,7 +53,7 @@
   x = not bit
 #+END_SRC
 
-- Often, space leaks exist because a function is applied iteratively before
+- Often you have a space leak because a function is applied in a loop before
   something is evaluated
 
 *** Evaluation destroys a thunk (but may create others)
@@ -96,7 +96,7 @@
 *Example:*
 
 #+BEGIN_SRC haskell
-  _ <- evaluate (not true)
+  _ <- evaluate (not bit)
 #+END_SRC
 
 * Controlling Evaluation
@@ -211,4 +211,4 @@
 * Resources
 
 - [[http://blog.ezyang.com/2011/04/the-haskell-heap/][The Haskell Heap]] by Edward Z. Yang (!)
-- [[https://github.com/themoritz/haskell-evaluation][Talk on Github]]
+- [https://github.com/themoritz/haskell-evaluation][Talk on Github]
